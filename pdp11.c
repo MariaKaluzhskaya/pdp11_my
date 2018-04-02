@@ -29,7 +29,7 @@ struct Command {
 	{0,       0177777, "halt", do_halt},
 	{0010000, 0170000, "mov",  do_mov},
 	{0060000, 0170000, "add",  do_add}, 
-	{0000000, 0000000, "uncnown", do_unknown}
+	{0000000, 0000000, "unknown", do_unknown}
 };
 
 byte b_read  (adr a);            // читает из "старой памяти" mem байт с "адресом" a.
@@ -69,14 +69,14 @@ void run(adr pc0) {
 	int i;
 	while(1) {
 		word w = w_read(pc);
-		printf("%06o:%06o", pc, w);
+		printf("%06o:%06o ", pc, w);
 		pc += 2;
-		for(i = 0; ; ++i)
+		for(i = 0; i < 4; ++i)
 		{
 			struct Command cmd = commands[i];
 			if((w&cmd.mask) == cmd.opcode)
 			{
-				printf("%s ", cmd.name);
+				printf("%s \n", cmd.name);
 				cmd.func();
 			}
 		}
@@ -111,6 +111,10 @@ void load_file()
     unsigned int a, n;
     FILE * f;
     f = fopen("sum.o", "r");
+    if (f == NULL) {
+		perror("open pdp file");
+		exit(1);
+	}
     unsigned int val;
     unsigned int i;
     while(fscanf(f, "%x%x", &a, &n) == 2)
@@ -122,6 +126,7 @@ void load_file()
         }
     }
 	fclose(f);
+	fprintf(stderr, "AAA\n");
 }
 
 void mem_dump(adr start, word n)
