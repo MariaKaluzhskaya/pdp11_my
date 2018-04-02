@@ -110,7 +110,7 @@ void load_file()
 {
     unsigned int a, n;
     FILE * f;
-    f = stdin;//fopen("c:/in.txt", "r");
+    f = fopen("sum.o", "r");
     unsigned int val;
     unsigned int i;
     while(fscanf(f, "%x%x", &a, &n) == 2)
@@ -121,7 +121,7 @@ void load_file()
             b_write (a + i, (byte)val);
         }
     }
-
+	fclose(f);
 }
 
 void mem_dump(adr start, word n)
