@@ -1,6 +1,10 @@
 # Prerequisites
 *.d
 
+# pdp file
+*.pdp
+*.l
+
 # Object files
 *.o
 *.ko
@@ -11,7 +15,7 @@
 *.ilk
 *.map
 *.exp
-a.out
+
 
 # Precompiled Headers
 *.gch
@@ -36,6 +40,8 @@ a.out
 *.i*86
 *.x86_64
 *.hex
+a.out
+pdp11
 
 # Debug files
 *.dSYM/
