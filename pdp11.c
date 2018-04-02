@@ -126,7 +126,6 @@ void load_file()
         }
     }
 	fclose(f);
-	fprintf(stderr, "AAA\n");
 }
 
 void mem_dump(adr start, word n)
