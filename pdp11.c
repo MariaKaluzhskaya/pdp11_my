@@ -78,6 +78,7 @@ void run(adr pc0) {
 			{
 				printf("%s \n", cmd.name);
 				cmd.func();
+				break;
 			}
 		}
 	}
