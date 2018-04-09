@@ -9,28 +9,24 @@ typedef unsigned short int word;
 typedef word adr;
 
 byte mem[64*1024];
+word reg[8];
+word nn;
+word ss;
+word get_nn(word w) {
+	return w & 077;
+}
+word get_ss(word w) {
+	return w & 1; //???
+}
 
 #define L0(x) ((x)& 0xFF)
 #define HI(x) (((x)>>8) & 0xFF)
-
-void test_mem();                                
-void do_add();
-void do_mov();
-void do_unknown();
-void do_halt();
-void run(adr pc0);
-
-struct Command {
-	word opcode;
-	word mask;
-	char* name;
-	void(*func)();
-} commands[] = {
-	{0,       0177777, "halt", do_halt},
-	{0010000, 0170000, "mov",  do_mov},
-	{0060000, 0170000, "add",  do_add}, 
-	{0000000, 0000000, "unknown", do_unknown}
-};
+#define pc reg[7]
+#define NO_PARAM 0
+#define HAS_SS 1
+#define HAS_DD 2 // (1<<1)
+#define HAS_XX 4 // (1<<2)
+#define HAS_NN 8 // (1<<3)
 
 byte b_read  (adr a);            // читает из "старой памяти" mem байт с "адресом" a.
 void b_write (adr a, byte val);  // пишет значение val в "старую память" mem в байт с "адресом" a.
@@ -42,6 +38,29 @@ void load_file();                //читает из стандартного п
 void mem_dump(adr start, word n);//печатает на стандартный поток вывода n байт, начиная с адреса start в формате:
                                  //адрес слова в виде восьмеричного числа с ведущими нулями, двоеточие,
                                  //содержимое слова в восьмеричном виде с ведущими нулями через пробел.
+void test_mem();                                
+void do_add();
+void do_mov();
+void do_unknown();
+void do_halt();
+void run(adr pc0);
+void do_sob() { w_read(nn); }
+
+struct Command {
+	word opcode;
+	word mask;
+	char* name;
+	void(*func)();
+	byte param;
+	
+} commands[] = {
+	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
+	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
+	{0060000, 0170000, "add",  do_add}, 
+	{0000000, 0000000, "unknown", do_unknown},
+	{0077000, 0177000, "sob", do_sob, HAS_NN}
+};
+
                           
 int main()
 {
@@ -65,7 +84,7 @@ void do_mov() {}
 void do_unknown() {}
 
 void run(adr pc0) {
-	adr pc = pc0;
+	// !!! adr pc = pc0;
 	int i;
 	while(1) {
 		word w = w_read(pc);
@@ -74,9 +93,16 @@ void run(adr pc0) {
 		for(i = 0; i < 4; ++i)
 		{
 			struct Command cmd = commands[i];
-			if((w&cmd.mask) == cmd.opcode)
+			if((w & cmd.mask) == cmd.opcode)
 			{
 				printf("%s \n", cmd.name);
+				//args
+				if(cmd.param & HAS_NN) {
+					nn = get_nn(w);
+				}
+				if(cmd.param & HAS_SS) {
+					ss = get_ss(w);
+				}
 				cmd.func();
 				break;
 			}
