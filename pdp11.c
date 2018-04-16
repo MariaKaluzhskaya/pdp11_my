@@ -45,6 +45,7 @@ void do_mov();
 void do_unknown();
 void do_halt();
 void do_sob();
+void do_clr();
 void run(adr pc0);
 
 word get_nn(word w) {
@@ -72,7 +73,7 @@ struct Argument get_dd(word w) {
 				res.a = reg[rn];
 				res.val = w_read(res.a);	// TODO: byte variant
 				reg[rn] += 2; 				// TODO: +1 if 
-				//printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
+				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
@@ -95,9 +96,11 @@ struct Command {
 } commands[] = {
 	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
 	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
-	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD}, 
-	{0000000, 0000000, "unknown", do_unknown, HAS_NN},
-	{0077000, 0177000, "sob", do_sob, HAS_NN}
+	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD},
+	{0077000, 0177000, "sob", do_sob, HAS_NN}, 
+	{0005000, 0007000, "clr", do_clr, HAS_DD},
+	{0000000, 0000000, "unknown", do_unknown, HAS_NN}
+	
 };
 
                           
@@ -121,7 +124,12 @@ void do_halt()
 }
 
 void do_add() {
-	w_write(dd.a, ss.val + dd.val);
+	reg[dd.a] = ss.val + dd.val;
+}
+
+void do_clr()
+{
+	reg[dd.a] = 0;
 }
 
 void do_mov() {
@@ -142,7 +150,7 @@ void run(adr pc0) {
 		word w = w_read(pc);
 		printf("%06o:%06o ", pc, w);
 		pc += 2;
-		for(i = 0; i < 4; ++i)
+		for(i = 0; ; ++i)
 		{
 			struct Command cmd = commands[i];
 			if((w & cmd.mask) == cmd.opcode)
@@ -158,10 +166,10 @@ void run(adr pc0) {
 				if(cmd.param & HAS_DD) {
 					dd = get_dd(w);
 				}
-				/*if(cmd.param & )
+				if(cmd.param & HAS_NN)
 				{
 					reg_number_sob = get_reg_number_sob(w);
-				}*/
+				}
 				cmd.func();
 				break;
 			}
@@ -173,9 +181,11 @@ void run(adr pc0) {
 byte b_read(adr a) {
     return mem[a];
 }
+
 void b_write(adr a, byte val) {
     mem[a] = val;
 }
+
 word w_read  (adr a) {
     //assert(a % 2 == 0);
     word w;
@@ -187,6 +197,7 @@ word w_read  (adr a) {
     //printf("%x\n", w);
     return w;
 }
+
 void w_write(adr a, word val) {
     assert(a % 2 == 0);
     mem[a] = (byte)L0(val);
