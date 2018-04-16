@@ -12,6 +12,7 @@ byte mem[64*1024];
 word reg[8];
 word nn;
 int reg_number_sob;
+int reg_number = 100;
 
 struct Argument {
 	adr a;
@@ -49,7 +50,9 @@ void run(adr pc0);
 word get_nn(word w) {
 	return w & 077;
 }
-
+int get_reg_number_sob(word w) {
+	return (w >> 6) &7;
+}
 struct Argument get_dd(word w) {
 	struct Argument res;
 	int rn = w & 7;
@@ -69,7 +72,7 @@ struct Argument get_dd(word w) {
 				res.a = reg[rn];
 				res.val = w_read(res.a);	// TODO: byte variant
 				reg[rn] += 2; 				// TODO: +1 if 
-				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
+				//printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
@@ -93,7 +96,7 @@ struct Command {
 	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
 	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
 	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD}, 
-	{0000000, 0000000, "unknown", do_unknown},
+	{0000000, 0000000, "unknown", do_unknown, HAS_NN},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}
 };
 
@@ -122,7 +125,9 @@ void do_add() {
 }
 
 void do_mov() {
-	w_write(dd.a, ss.val);
+	//w_write(dd.a, ss.val);
+	//printf("%d\n", dd.a);
+	reg[dd.a] = ss.val; 
 }
 
 void do_unknown() {
@@ -153,6 +158,10 @@ void run(adr pc0) {
 				if(cmd.param & HAS_DD) {
 					dd = get_dd(w);
 				}
+				/*if(cmd.param & )
+				{
+					reg_number_sob = get_reg_number_sob(w);
+				}*/
 				cmd.func();
 				break;
 			}
@@ -179,7 +188,7 @@ word w_read  (adr a) {
     return w;
 }
 void w_write(adr a, word val) {
-    assert(a%2 == 0);
+    assert(a % 2 == 0);
     mem[a] = (byte)L0(val);
     mem[a+1] = (byte)HI(val);
 }
@@ -221,7 +230,10 @@ void mem_dump(adr start, word n)
 
 }
 void do_sob() {
-	//printf("r%d 0%6o", reg_number_sob);
+	printf("r%d 0%6o", reg_number_sob, pc - 2*nn);
+	reg[reg_number_sob] --;
+	if(reg[reg_number] != 0)
+	pc = pc - 2*nn;
 }
 void test_mem() {
     byte b0, b1;
