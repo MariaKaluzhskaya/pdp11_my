@@ -11,13 +11,13 @@ typedef word adr;
 byte mem[64*1024];
 word reg[8];
 word nn;
-word ss;
-word get_nn(word w) {
-	return w & 077;
-}
-word get_ss(word w) {
-	return w & 1; //???
-}
+int reg_number_sob;
+
+struct Argument {
+	adr a;
+	word val;
+};
+struct Argument ss, dd;
 
 #define L0(x) ((x)& 0xFF)
 #define HI(x) (((x)>>8) & 0xFF)
@@ -43,8 +43,44 @@ void do_add();
 void do_mov();
 void do_unknown();
 void do_halt();
+void do_sob();
 void run(adr pc0);
-void do_sob() { w_read(nn); }
+
+word get_nn(word w) {
+	return w & 077;
+}
+
+struct Argument get_dd(word w) {
+	struct Argument res;
+	int rn = w & 7;
+	int mode = (w >> 3) & 7;
+	switch(mode) {
+		case 0:
+				res.a = rn;
+				res.val = reg[rn];
+				printf("r%d ", rn);
+				break;
+		case 1:
+				res.a = reg[rn];
+				res.val = w_read(res.a);	// TODO: byte varant
+				printf("(r%d) ", rn);
+				break;
+		case 2:
+				res.a = reg[rn];
+				res.val = w_read(res.a);	// TODO: byte variant
+				reg[rn] += 2; 				// TODO: +1 if 
+				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
+				if (rn == 7)
+					printf("#%o ", res.val);
+				else
+					printf("(r%d) ", rn);
+				break;
+		default:
+				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
+				exit(1);
+	}
+	return res;
+}
 
 struct Command {
 	word opcode;
@@ -56,16 +92,20 @@ struct Command {
 } commands[] = {
 	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
 	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
-	{0060000, 0170000, "add",  do_add}, 
+	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD}, 
 	{0000000, 0000000, "unknown", do_unknown},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}
 };
 
                           
-int main()
+int main(int argc, char * argv[])
 {
+	char * filename = NULL;
+	if (argc > 1)
+		filename = argv[1];
+	
 	test_mem();
-	load_file();
+	load_file(filename);
 	run(01000);
 	printf("Normal\n");
 	return 0;
@@ -77,15 +117,22 @@ void do_halt()
 	exit(0);
 }
 
-void do_add() {}
+void do_add() {
+	w_write(dd.a, ss.val + dd.val);
+}
 
-void do_mov() {}
+void do_mov() {
+	w_write(dd.a, ss.val);
+}
 
-void do_unknown() {}
+void do_unknown() {
+	exit(1);
+}
 
 void run(adr pc0) {
-	// !!! adr pc = pc0;
+	pc = pc0;
 	int i;
+	printf("adr   :opcode\n");
 	while(1) {
 		word w = w_read(pc);
 		printf("%06o:%06o ", pc, w);
@@ -95,18 +142,22 @@ void run(adr pc0) {
 			struct Command cmd = commands[i];
 			if((w & cmd.mask) == cmd.opcode)
 			{
-				printf("%s \n", cmd.name);
+				printf("%s ", cmd.name);
 				//args
 				if(cmd.param & HAS_NN) {
 					nn = get_nn(w);
 				}
 				if(cmd.param & HAS_SS) {
-					ss = get_ss(w);
+					ss = get_dd(w>>6);
+				}
+				if(cmd.param & HAS_DD) {
+					dd = get_dd(w);
 				}
 				cmd.func();
 				break;
 			}
 		}
+		printf("\n");
 	}
 }
 					
@@ -133,14 +184,18 @@ void w_write(adr a, word val) {
     mem[a+1] = (byte)HI(val);
 }
 
-void load_file() 
+void load_file(const char * filename) 
 {
     unsigned int a, n;
     FILE * f;
-    f = fopen("sum.o", "r");
-    if (f == NULL) {
-		perror("open pdp file");
-		exit(1);
+    if (filename == NULL) 
+		f = stdin;
+	else {
+		f = fopen(filename, "r");
+		if (f == NULL) {
+			perror("open pdp file");
+			exit(1);
+		}
 	}
     unsigned int val;
     unsigned int i;
@@ -165,8 +220,9 @@ void mem_dump(adr start, word n)
     }
 
 }
-
-
+void do_sob() {
+	//printf("r%d 0%6o", reg_number_sob);
+}
 void test_mem() {
     byte b0, b1;
     word w;
