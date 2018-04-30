@@ -13,12 +13,13 @@ word reg[8];
 int NZVC[4];
 word nn, xx;
 int reg_number_sob;
-int reg_number = 100;
 
+int b_or_w;
 struct Argument {
 	adr a;
 	word val;
 };
+
 struct Argument ss, dd;
 
 #define L0(x) ((x)& 0xFF)
@@ -51,6 +52,7 @@ void do_clr();
 void do_br();
 void do_beq();
 void run(adr pc0);
+void reg_dump();
 
 word get_nn(word w) {
 	return w & 077;
@@ -71,13 +73,22 @@ struct Argument get_dd(word w) {
 				break;
 		case 1:
 				res.a = reg[rn];
-				res.val = w_read(res.a);	// TODO: byte varant
+				if(!b_or_w) 	
+					res.val = w_read(res.a);
+				else
+					res.val = b_read(res.a);// TODO: byte varant
 				printf("(r%d) ", rn);
 				break;
 		case 2:
 				res.a = reg[rn];
-				res.val = w_read(res.a);	// TODO: byte variant
-				reg[rn] += 2; 				// TODO: +1 if 
+				if(!b_or_w) {
+					res.val = w_read(res.a);
+					reg[rn] += 2;
+				}	
+				else {
+					res.val = b_read(res.a);// TODO: byte variant
+					reg[rn] += 1;
+				} 				// TODO: +1 if 
 				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
@@ -101,6 +112,7 @@ struct Command {
 } commands[] = {
 	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
 	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
+	{0110000, 0170000, "movb", do_mov, HAS_SS | HAS_DD},
 	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}, 
 	{0005000, 0177000, "clr", do_clr, HAS_DD},
@@ -119,13 +131,14 @@ int main(int argc, char * argv[])
 	test_mem();
 	load_file(filename);
 	run(01000);
-	printf("Normal\n");
+	printf("reg[3] = %o\n", reg[3]);
 	return 0;
 }
 
 void do_halt()
 {
 	printf("THE END!!!!\n");
+	reg_dump();
 	exit(0);
 }
 
@@ -164,6 +177,7 @@ void run(adr pc0) {
 			struct Command cmd = commands[i];
 			if((w & cmd.mask) == cmd.opcode)
 			{
+				b_or_w = (w >> 15) & 1;
 				printf("%s ", cmd.name);
 				//args
 				if(cmd.param & HAS_NN) {
@@ -249,11 +263,20 @@ void mem_dump(adr start, word n)
     }
 
 }
+void reg_dump() {
+	int i;
+	for (i=0; i< 8; i++)
+		printf("r%d:%o ", i, reg[i]);
+	printf("\n");
+}
 void do_sob() {
-	printf("r%d 0%6o", reg_number_sob, pc - 2*nn);
+	word g = pc - 2*nn;
+	printf("nn=%o r%d pc=%o goto=%6o reg[%d]=%o", nn, reg_number_sob, pc, g, reg_number_sob, reg[reg_number_sob]);
 	reg[reg_number_sob] --;
-	if(reg[reg_number] != 0)
-	pc = pc - 2*nn;
+	if(reg[reg_number_sob] != 0) {
+		pc = g;
+		printf("   set pc=%o ", pc);
+	}
 }
 
 void do_br()
@@ -264,9 +287,7 @@ void do_br()
 void do_beq()
 {
 	if(Z)
-		pc += 2 * xx;
-	else
-		pc += 2;
+		do_br();
 }
 
 void test_mem() {
