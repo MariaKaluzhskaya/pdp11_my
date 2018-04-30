@@ -10,7 +10,8 @@ typedef word adr;
 
 byte mem[64*1024];
 word reg[8];
-word nn;
+int NZVC[4];
+word nn, xx;
 int reg_number_sob;
 int reg_number = 100;
 
@@ -28,6 +29,7 @@ struct Argument ss, dd;
 #define HAS_DD 2 // (1<<1)
 #define HAS_XX 4 // (1<<2)
 #define HAS_NN 8 // (1<<3)
+#define Z NZVC[1]
 
 byte b_read  (adr a);            // читает из "старой памяти" mem байт с "адресом" a.
 void b_write (adr a, byte val);  // пишет значение val в "старую память" mem в байт с "адресом" a.
@@ -46,6 +48,8 @@ void do_unknown();
 void do_halt();
 void do_sob();
 void do_clr();
+void do_br();
+void do_beq();
 void run(adr pc0);
 
 word get_nn(word w) {
@@ -57,6 +61,7 @@ int get_reg_number_sob(word w) {
 struct Argument get_dd(word w) {
 	struct Argument res;
 	int rn = w & 7;
+	xx = w & 255;
 	int mode = (w >> 3) & 7;
 	switch(mode) {
 		case 0:
@@ -98,9 +103,10 @@ struct Command {
 	{0010000, 0170000, "mov",  do_mov, HAS_SS | HAS_DD},
 	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}, 
-	{0005000, 0007000, "clr", do_clr, HAS_DD},
-	{0000000, 0000000, "unknown", do_unknown, HAS_NN}
-	
+	{0005000, 0177000, "clr", do_clr, HAS_DD},
+	{0000000, 0000000, "unknown", do_unknown, HAS_NN},
+	{0000400, 0177400, "br", do_br, HAS_XX},
+	{0001400, 0177400, "beq", do_beq, HAS_XX}
 };
 
                           
@@ -125,17 +131,20 @@ void do_halt()
 
 void do_add() {
 	reg[dd.a] = ss.val + dd.val;
+	Z = !(reg[dd.a]);
 }
 
 void do_clr()
 {
 	reg[dd.a] = 0;
+	Z = 1;
 }
 
 void do_mov() {
 	//w_write(dd.a, ss.val);
 	//printf("%d\n", dd.a);
-	reg[dd.a] = ss.val; 
+	reg[dd.a] = ss.val;
+	Z = !(reg[dd.a]); 
 }
 
 void do_unknown() {
@@ -246,6 +255,20 @@ void do_sob() {
 	if(reg[reg_number] != 0)
 	pc = pc - 2*nn;
 }
+
+void do_br()
+{
+	pc += 2 * xx;
+}
+
+void do_beq()
+{
+	if(Z)
+		pc += 2 * xx;
+	else
+		pc += 2;
+}
+
 void test_mem() {
     byte b0, b1;
     word w;
