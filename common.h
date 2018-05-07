@@ -1,3 +1,9 @@
+#ifndef _PDP_COMMON_H
+#define _PDP_COMMON_H
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 
 #define L0(x) ((x)& 0xFF)
 #define HI(x) (((x)>>8) & 0xFF)
@@ -8,10 +14,22 @@
 #define HAS_XX 4 // (1<<2)
 #define HAS_NN 8 // (1<<3)
 #define Z NZVC[1]
+#define N NZVC[2]
+#define ostat 177564
+#define odata 177566
+
 
 typedef unsigned char byte;
 typedef unsigned short int word;
 typedef word adr;
+
+struct Command {
+	word opcode;
+	word mask;
+	char* name;
+	void(*func)();
+	byte param;
+};
 
 byte mem[64*1024];
 word reg[8];
@@ -23,6 +41,7 @@ int b_or_w;
 struct Argument {
 	adr a;
 	word val;
+	byte space;
 };
 
 struct Argument ss, dd;
@@ -52,14 +71,6 @@ word get_nn(word w);
 int get_reg_number_sob(word w);
 struct Argument get_dd(word w);
 
-struct Command {
-	word opcode;
-	word mask;
-	char* name;
-	void(*func)();
-	byte param;
-	
-};
 
 
 #endif

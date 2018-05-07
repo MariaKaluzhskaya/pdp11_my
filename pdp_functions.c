@@ -1,4 +1,5 @@
-#include "common.h"
+#include <stdlib.h>
+#include "./common.h"
 
 struct Command commands[] = {
 	{0,       0177777, "halt", do_halt, NO_PARAM}, //0xFFF
@@ -23,64 +24,80 @@ struct Argument get_dd(word w) {
 	int rn = w & 7;
 	xx = w & 255;
 	int mode = (w >> 3) & 7;
+	
+	res.space = 1;
+
 	switch(mode) {
 		case 0:
-				res.a = &(reg[rn]);
+				res.space = 0;
+				res.a = rn;
 				res.val = reg[rn];
 				printf("r%d ", rn);
 				break;
 		case 1:
-				res.a = mem + reg[rn];
-				if(!b_or_w) 	
-					res.val = w_read(reg[rn]);
-				else
-					res.val = b_read(reg[rn]);// TODO: byte varant
+				
+				res.a = reg[rn];
+				if(!b_or_w) {
+					res.val = w_read(res.a);
+				}
+				else {
+					res.val = b_read(res.a);
+				}
 				printf("(r%d) ", rn);
 				break;
 		case 2:
-				res.a = mem + reg[rn];
+				res.a = reg[rn];
 				if(!b_or_w) {
-					res.val = w_read(reg[rn]);
+					res.val = w_read(res.a);
 					reg[rn] += 2;
 				}	
 				else {
-					res.val = b_read(reg[rn]);// TODO: byte variant
+					res.val = b_read(res.a);
 					reg[rn] += 1;
+					if (rn == 6 || rn == 7)
+						reg[rn]++;
 				} 				// TODO: +1 if 
-				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
+				//printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
-					printf("(r%d) ", rn);
+					printf("(r%d)+ ", rn);
 				break;
 		case 3: 
-				res.a = mem + w_read(reg[rn]);
+				res.a = w_read(reg[rn]);
 				if(!b_or_w) {
-					res.val = w_read(w_read(reg[rn]));
+					res.val = w_read(res.a);
 					reg[rn] += 2;
 				}	
 				else {
-					res.val = b_read(w_read(reg[rn]));// TODO: byte variant
-					reg[rn] += 2;
-				} 				// TODO: +1 if*/ 
-				break;
-		case 4:
-				if(!b_or_w) {
-					res.val = w_read(reg[rn]);
-					reg[rn] -= 2;
-				}	
-				else {
-					res.val = b_read(reg[rn]);// TODO: byte variant
-					reg[rn] -= 1;
+					res.val = b_read(res.a);
+					reg[rn] += 1;
+					if (rn == 6 || rn == 7)
+						reg[rn]++;
 				} 				// TODO: +1 if 
-				res.a = mem + reg[rn];
-				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
-					printf("(r%d) ", rn);
+					printf("@(r%d)+ ", rn);
 				break;
-				
+		case 4:
+				res.a = reg[rn];
+				if(!b_or_w) {
+					reg[rn] -= 2;
+					res.val = w_read(res.a);
+				}	
+				else {
+					reg[rn] -= 1;
+					res.val = b_read(res.a);
+					if (rn == 6 || rn == 7)
+						reg[rn]++;
+				} 				// TODO: +1 if 
+				//printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
+				if (rn == 7)
+					printf("#%o ", res.val);
+				else
+					printf("-(r%d) ", rn);
+				break;
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
 				exit(1);
@@ -94,26 +111,67 @@ void do_halt()
 	exit(0);
 }
 
+void write_dd(struct Argument dd) {
+	if (dd.space == 0) {
+		if (b_or_w) {
+			reg[dd.a] = (byte)dd.val;
+		} 
+		else {
+			reg[dd.a] = dd.val;
+		}
+	} 
+	else {
+		if (b_or_w) {
+			b_write(dd.a, (byte)dd.val);
+		}
+		 else {
+			w_write(dd.a, dd.val);
+		}	
+	}
+}
+
 void do_add() {
-	if(!b_or_w)
-		*(word*)(dd.a) = ss.val + dd.val;
-	else
-		*(word*)(dd.a) = (char)ss.val + (char)dd.val;
-	Z = !(*(word*)(dd.a));
+	dd.val = ss.val + dd.val;
+	write_dd(dd);
+	Z = (dd.val == 0);
 }
 
 void do_clr()
 {
-	*(word*)(dd.a) = 0;
+	dd.val = 0;
+	write_dd(dd);
+	//dd.a = 0;
 		Z = 1;
 }
 
 void do_mov() {
-	if(!b_or_w)
+	dd.val = ss.val;
+	write_dd(dd);
+	/*if(!b_or_w)
 		*(word*)(dd.a) = ss.val;
 	else
-		*(word*)(dd.a) = (byte)ss.val;
+		*(word*)(dd.a) = (byte)ss.val;*/
 	Z = !(ss.val);
+}
+void do_sob() {
+	word g = pc - 2*nn;
+	printf("nn=%o r%d pc=%o goto=%6o reg[%d]=%o", nn, reg_number_sob, pc, g, reg_number_sob, reg[reg_number_sob]);
+	reg[reg_number_sob] --;
+	if(reg[reg_number_sob] != 0) {
+		pc = g;
+		printf("   set pc=%o ", pc);
+	}
+}
+
+void do_br()
+{
+	pc += 2 * xx;
+}
+
+void do_beq()
+{
+	if(Z)
+		do_br();
 }
 
 void do_unknown() {
@@ -155,11 +213,16 @@ void run(adr pc0) {
 }
 					
 byte b_read(adr a) {
+	if(a == ostat)
+		return 0xFF;
     return mem[a];
 }
 
 void b_write(adr a, byte val) {
-    mem[a] = val;
+	if(a == odata)
+		fprintf(stdout, "%c", val);
+	else
+		mem[a] = val;
 }
 
 word w_read  (adr a) {
@@ -218,26 +281,6 @@ void reg_dump() {
 	for (i=0; i< 8; i++)
 		printf("r%d:%o ", i, reg[i]);
 	printf("\n");
-}
-void do_sob() {
-	word g = pc - 2*nn;
-	printf("nn=%o r%d pc=%o goto=%6o reg[%d]=%o", nn, reg_number_sob, pc, g, reg_number_sob, reg[reg_number_sob]);
-	reg[reg_number_sob] --;
-	if(reg[reg_number_sob] != 0) {
-		pc = g;
-		printf("   set pc=%o ", pc);
-	}
-}
-
-void do_br()
-{
-	pc += 2 * xx;
-}
-
-void do_beq()
-{
-	if(Z)
-		do_br();
 }
 
 void test_mem() {
