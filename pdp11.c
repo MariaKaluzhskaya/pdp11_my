@@ -106,6 +106,22 @@ struct Argument get_dd(word w) {
 					reg[rn] += 2;
 				} 				// TODO: +1 if*/ 
 				break;
+		case 4:
+				if(!b_or_w) {
+					res.val = w_read(reg[rn]);
+					reg[rn] -= 2;
+				}	
+				else {
+					res.val = b_read(reg[rn]);// TODO: byte variant
+					reg[rn] -= 1;
+				} 				// TODO: +1 if 
+				res.a = mem + reg[rn];
+				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
+				if (rn == 7)
+					printf("#%o ", res.val);
+				else
+					printf("(r%d) ", rn);
+				break;
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
 				exit(1);
