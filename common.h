@@ -1,10 +1,3 @@
-#ifndef _PDP11_H
-#define _PDP11_H
-
-#include <stdio.h> //нужны ли include в хедере?
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
 
 #define L0(x) ((x)& 0xFF)
 #define HI(x) (((x)>>8) & 0xFF)

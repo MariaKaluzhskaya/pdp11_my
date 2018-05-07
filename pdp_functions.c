@@ -25,35 +25,61 @@ struct Argument get_dd(word w) {
 	int mode = (w >> 3) & 7;
 	switch(mode) {
 		case 0:
-				res.a = rn;
+				res.a = &(reg[rn]);
 				res.val = reg[rn];
 				printf("r%d ", rn);
 				break;
 		case 1:
-				res.a = reg[rn];
+				res.a = mem + reg[rn];
 				if(!b_or_w) 	
-					res.val = w_read(res.a);
+					res.val = w_read(reg[rn]);
 				else
-					res.val = b_read(res.a);
+					res.val = b_read(reg[rn]);// TODO: byte varant
 				printf("(r%d) ", rn);
 				break;
 		case 2:
-				res.a = reg[rn];
+				res.a = mem + reg[rn];
 				if(!b_or_w) {
-					res.val = w_read(res.a);
+					res.val = w_read(reg[rn]);
 					reg[rn] += 2;
 				}	
 				else {
-					res.val = b_read(res.a);
+					res.val = b_read(reg[rn]);// TODO: byte variant
 					reg[rn] += 1;
-				} 				
-				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
+				} 				// TODO: +1 if 
+				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
 					printf("(r%d) ", rn);
 				break;
-		case 3:
+		case 3: 
+				res.a = mem + w_read(reg[rn]);
+				if(!b_or_w) {
+					res.val = w_read(w_read(reg[rn]));
+					reg[rn] += 2;
+				}	
+				else {
+					res.val = b_read(w_read(reg[rn]));// TODO: byte variant
+					reg[rn] += 2;
+				} 				// TODO: +1 if*/ 
+				break;
+		case 4:
+				if(!b_or_w) {
+					res.val = w_read(reg[rn]);
+					reg[rn] -= 2;
+				}	
+				else {
+					res.val = b_read(reg[rn]);// TODO: byte variant
+					reg[rn] -= 1;
+				} 				// TODO: +1 if 
+				res.a = mem + reg[rn];
+				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
+				if (rn == 7)
+					printf("#%o ", res.val);
+				else
+					printf("(r%d) ", rn);
+				break;
 				
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
@@ -69,19 +95,25 @@ void do_halt()
 }
 
 void do_add() {
-	reg[dd.a] = ss.val + dd.val;
-	Z = !(reg[dd.a]);
+	if(!b_or_w)
+		*(word*)(dd.a) = ss.val + dd.val;
+	else
+		*(word*)(dd.a) = (char)ss.val + (char)dd.val;
+	Z = !(*(word*)(dd.a));
 }
 
 void do_clr()
 {
-	reg[dd.a] = 0;
-	Z = 1;
+	*(word*)(dd.a) = 0;
+		Z = 1;
 }
 
 void do_mov() {
-	reg[dd.a] = ss.val;
-	Z = !(reg[dd.a]); 
+	if(!b_or_w)
+		*(word*)(dd.a) = ss.val;
+	else
+		*(word*)(dd.a) = (byte)ss.val;
+	Z = !(ss.val);
 }
 
 void do_unknown() {
@@ -106,16 +138,13 @@ void run(adr pc0) {
 				//args
 				if(cmd.param & HAS_NN) {
 					nn = get_nn(w);
+					reg_number_sob = get_reg_number_sob(w);
 				}
 				if(cmd.param & HAS_SS) {
 					ss = get_dd(w>>6);
 				}
 				if(cmd.param & HAS_DD) {
 					dd = get_dd(w);
-				}
-				if(cmd.param & HAS_NN)
-				{
-					reg_number_sob = get_reg_number_sob(w);
 				}
 				cmd.func();
 				break;
