@@ -1,0 +1,27 @@
+    . = 100
+A:  .WORD   5, 6, 7
+; Test both 2 and 4 modes (for before.. and after.. implementation)
+; R0 - address of curent number
+;;;;;;;;;
+    . = 1000
+    mov #A, R0
+    add #2, R0          ; *r0 = 6
+    add (R0)+, -(R0)    ; 6 + 6
+    
+    mov #A, R1
+    mov (r1)+, r2
+    mov (r1)+, r3
+    mov (r1)+, r4
+    
+    halt
+
+; Expected result:    
+; r0=000002 r2=000005 r4=000007 sp=000000
+; r1=000006 r3=000014 r5=000000 pc=001026
+; psw=000000: cm=k pm=k pri=0        [8]
+     
+    
+    
+    
+    
+

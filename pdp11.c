@@ -95,16 +95,17 @@ struct Argument get_dd(word w) {
 				else
 					printf("(r%d) ", rn);
 				break;
-		/*case 3: 
-				res.a = (word*)reg[rn];
+		case 3: 
+				res.a = mem + w_read(reg[rn]);
 				if(!b_or_w) {
-					res.val = w_read(*res.a);
+					res.val = w_read(w_read(reg[rn]));
 					reg[rn] += 2;
 				}	
 				else {
-					res.val = b_read(*res.a);// TODO: byte variant
-					reg[rn] += 1;
+					res.val = b_read(w_read(reg[rn]));// TODO: byte variant
+					reg[rn] += 2;
 				} 				// TODO: +1 if*/ 
+				break;
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
 				exit(1);
@@ -126,9 +127,10 @@ struct Command {
 	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}, 
 	{0005000, 0177000, "clr", do_clr, HAS_DD},
-	{0000000, 0000000, "unknown", do_unknown, HAS_NN},
 	{0000400, 0177400, "br", do_br, HAS_XX},
-	{0001400, 0177400, "beq", do_beq, HAS_XX}
+	{0001400, 0177400, "beq", do_beq, HAS_XX},
+	{0000000, 0000000, "unknown", do_unknown, HAS_NN}
+	
 };
 
                           
@@ -156,8 +158,7 @@ void do_add() {
 	if(!b_or_w)
 		*(word*)(dd.a) = ss.val + dd.val;
 	else
-		*(byte*)(dd.a) = ss.val + dd.val;
-	
+		*(word*)(dd.a) = (char)ss.val + (char)dd.val;
 	Z = !(*(word*)(dd.a));
 }
 
@@ -171,7 +172,7 @@ void do_mov() {
 	if(!b_or_w)
 		*(word*)(dd.a) = ss.val;
 	else
-		*(byte*)(dd.a) = ss.val;
+		*(word*)(dd.a) = (byte)ss.val;
 	Z = !(ss.val); 
 }
 
@@ -197,16 +198,13 @@ void run(adr pc0) {
 				//args
 				if(cmd.param & HAS_NN) {
 					nn = get_nn(w);
+					reg_number_sob = get_reg_number_sob(w);
 				}
 				if(cmd.param & HAS_SS) {
 					ss = get_dd(w>>6);
 				}
 				if(cmd.param & HAS_DD) {
 					dd = get_dd(w);
-				}
-				if(cmd.param & HAS_NN)
-				{
-					reg_number_sob = get_reg_number_sob(w);
 				}
 				cmd.func();
 				break;
@@ -278,12 +276,14 @@ void mem_dump(adr start, word n)
     }
 
 }
+
 void reg_dump() {
 	int i;
 	for (i=0; i< 8; i++)
 		printf("r%d:%o ", i, reg[i]);
 	printf("\n");
 }
+
 void do_sob() {
 	word g = pc - 2*nn;
 	printf("nn=%o r%d pc=%o goto=%6o reg[%d]=%o", nn, reg_number_sob, pc, g, reg_number_sob, reg[reg_number_sob]);
