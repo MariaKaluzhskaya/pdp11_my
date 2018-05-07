@@ -16,7 +16,7 @@ int reg_number_sob;
 
 int b_or_w;
 struct Argument {
-	adr a;
+	void* a;
 	word val;
 };
 
@@ -67,34 +67,44 @@ struct Argument get_dd(word w) {
 	int mode = (w >> 3) & 7;
 	switch(mode) {
 		case 0:
-				res.a = rn;
+				res.a = &(reg[rn]);
 				res.val = reg[rn];
 				printf("r%d ", rn);
 				break;
 		case 1:
-				res.a = reg[rn];
+				res.a = mem + reg[rn];
 				if(!b_or_w) 	
-					res.val = w_read(res.a);
+					res.val = w_read(reg[rn]);
 				else
-					res.val = b_read(res.a);// TODO: byte varant
+					res.val = b_read(reg[rn]);// TODO: byte varant
 				printf("(r%d) ", rn);
 				break;
 		case 2:
-				res.a = reg[rn];
+				res.a = mem + reg[rn];
 				if(!b_or_w) {
-					res.val = w_read(res.a);
+					res.val = w_read(reg[rn]);
 					reg[rn] += 2;
 				}	
 				else {
-					res.val = b_read(res.a);// TODO: byte variant
+					res.val = b_read(reg[rn]);// TODO: byte variant
 					reg[rn] += 1;
 				} 				// TODO: +1 if 
-				printf("rn = %d res.a=%o res.val=%o, reg[%d]=%o\n", rn, res.a, res.val, rn, reg[rn]);
+				printf("rn = %d res.val=%o, reg[%d]=%o\n", rn, res.val, rn, reg[rn]);
 				if (rn == 7)
 					printf("#%o ", res.val);
 				else
 					printf("(r%d) ", rn);
 				break;
+		/*case 3: 
+				res.a = (word*)reg[rn];
+				if(!b_or_w) {
+					res.val = w_read(*res.a);
+					reg[rn] += 2;
+				}	
+				else {
+					res.val = b_read(*res.a);// TODO: byte variant
+					reg[rn] += 1;
+				} 				// TODO: +1 if*/ 
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
 				exit(1);
@@ -143,21 +153,26 @@ void do_halt()
 }
 
 void do_add() {
-	reg[dd.a] = ss.val + dd.val;
-	Z = !(reg[dd.a]);
+	if(!b_or_w)
+		*(word*)(dd.a) = ss.val + dd.val;
+	else
+		*(byte*)(dd.a) = ss.val + dd.val;
+	
+	Z = !(*(word*)(dd.a));
 }
 
 void do_clr()
 {
-	reg[dd.a] = 0;
+	*(word*)(dd.a) = 0;
 	Z = 1;
 }
 
 void do_mov() {
-	//w_write(dd.a, ss.val);
-	//printf("%d\n", dd.a);
-	reg[dd.a] = ss.val;
-	Z = !(reg[dd.a]); 
+	if(!b_or_w)
+		*(word*)(dd.a) = ss.val;
+	else
+		*(byte*)(dd.a) = ss.val;
+	Z = !(ss.val); 
 }
 
 void do_unknown() {
