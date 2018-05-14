@@ -8,14 +8,33 @@ struct Command commands[] = {
 	{0060000, 0170000, "add",  do_add, HAS_SS | HAS_DD},
 	{0077000, 0177000, "sob", do_sob, HAS_NN}, 
 	{0005000, 0177000, "clr", do_clr, HAS_DD},
-	{0000000, 0000000, "unknown", do_unknown, HAS_NN},
 	{0000400, 0177400, "br", do_br, HAS_XX},
-	{0001400, 0177400, "beq", do_beq, HAS_XX}
+	{0001400, 0177400, "beq", do_beq, HAS_XX},
+	{0100000, 0177400, "bpl", do_bpl, HAS_XX},
+	{0105700, 0177700, "tstb", do_tst, HAS_DD},
+	{0005700, 0177700, "tst", do_tst, HAS_DD},
+	{0000000, 0000000, "unknown", do_unknown, HAS_NN}
 };
-
+void setNZ(word w) {
+	if (b_or_w) {	// byte
+		w = w & 0xFF;
+		N = (w >> 7) & 1;
+	} else {		// word
+		w = w & 0xFFFF;
+		N = (w >> 15) & 1; 
+	}
+	Z = !w;
+}
 word get_nn(word w) {
 	return w & 077;
 }
+
+char get_xx(word w) {
+	char res = w & 0377;
+	printf("%d\n", res);
+	return (w & 0377);
+}
+
 int get_reg_number_sob(word w) {
 	return (w >> 6) &7;
 }
@@ -133,25 +152,20 @@ void write_dd(struct Argument dd) {
 void do_add() {
 	dd.val = ss.val + dd.val;
 	write_dd(dd);
-	Z = (dd.val == 0);
+	setNZ(dd.val);
 }
 
 void do_clr()
 {
 	dd.val = 0;
 	write_dd(dd);
-	//dd.a = 0;
-		Z = 1;
+	setNZ(dd.val);
 }
 
 void do_mov() {
 	dd.val = ss.val;
 	write_dd(dd);
-	/*if(!b_or_w)
-		*(word*)(dd.a) = ss.val;
-	else
-		*(word*)(dd.a) = (byte)ss.val;*/
-	Z = !(ss.val);
+	setNZ(dd.val);
 }
 void do_sob() {
 	word g = pc - 2*nn;
@@ -172,6 +186,16 @@ void do_beq()
 {
 	if(Z)
 		do_br();
+}
+void do_bpl()
+{
+	if(N == 0)
+		do_br();
+}
+
+void do_tst()
+{
+	setNZ(dd.val);
 }
 
 void do_unknown() {
@@ -204,6 +228,9 @@ void run(adr pc0) {
 				if(cmd.param & HAS_DD) {
 					dd = get_dd(w);
 				}
+				if(cmd.param & HAS_XX) {
+					xx = get_xx(w);
+				}
 				cmd.func();
 				break;
 			}
@@ -220,7 +247,7 @@ byte b_read(adr a) {
 
 void b_write(adr a, byte val) {
 	if(a == odata)
-		fprintf(stdout, "%c", val);
+		fprintf(stderr, "%c", val);
 	else
 		mem[a] = val;
 }

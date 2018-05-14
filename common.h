@@ -14,10 +14,9 @@
 #define HAS_XX 4 // (1<<2)
 #define HAS_NN 8 // (1<<3)
 #define Z NZVC[1]
-#define N NZVC[2]
-#define ostat 177564
-#define odata 177566
-
+#define N NZVC[0]
+#define ostat 0177564 //как указать, что это восьмеричная система?
+#define odata 0177566 //0 перед цифрами
 
 typedef unsigned char byte;
 typedef unsigned short int word;
@@ -34,7 +33,8 @@ struct Command {
 byte mem[64*1024];
 word reg[8];
 int NZVC[4];
-word nn, xx;
+word nn;
+char xx;
 int reg_number_sob;
 int b_or_w;
 
@@ -66,10 +66,14 @@ void do_sob();
 void do_clr();
 void do_br();
 void do_beq();
+void do_bpl();
+void do_tst();
 
 word get_nn(word w);
 int get_reg_number_sob(word w);
 struct Argument get_dd(word w);
+char get_xx(word w);
+
 
 
 
