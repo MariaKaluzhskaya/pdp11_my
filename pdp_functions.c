@@ -13,13 +13,18 @@ struct Command commands[] = {
 	{0100000, 0177400, "bpl", do_bpl, HAS_XX},
 	{0105700, 0177700, "tstb", do_tst, HAS_DD},
 	{0005700, 0177700, "tst", do_tst, HAS_DD},
+	{0004000, 0177000, "jsr", do_jsr, HAS_DD | HAS_R},
+	{0000200, 0177700, "rts", do_rts, HAS_R1},
 	{0000000, 0000000, "unknown", do_unknown, HAS_NN}
 };
 void setNZ(word w) {
-	if (b_or_w) {	// byte
+	if (b_or_w) 
+	{	// byte
 		w = w & 0xFF;
 		N = (w >> 7) & 1;
-	} else {		// word
+	} 
+	else 
+	{		// word
 		w = w & 0xFFFF;
 		N = (w >> 15) & 1; 
 	}
@@ -42,6 +47,7 @@ struct Argument get_dd(word w) {
 	struct Argument res;
 	int rn = w & 7;
 	xx = w & 255;
+	nn = w + 1;
 	int mode = (w >> 3) & 7;
 	
 	res.space = 1;
@@ -117,12 +123,66 @@ struct Argument get_dd(word w) {
 				else
 					printf("-(r%d) ", rn);
 				break;
+		case 6: 	
+				memory = w_read(pc);
+				pc += 2;
+				res.a = reg[rn];
+				res.a += memory;
+				res.a  = res.a & 0xffff;
+				res.val = ((b_or_w == 1) & (rn < 6))? b_read(res.a) : w_read(res.a);
+				if (N == 7)
+					printf("%o", res.a);
+				else
+					printf("%o(R%o) ", memory, rn);
+				break;
+		case 7:
+				Z = w_read(pc);
+				pc += 2;
+				res.a = reg[rn];
+				res.a += Z;
+				res.a = w_read(res.a);
+				res.a = res.a & 0xffff;
+				res.val = b_or_w ? b_read(res.a) : w_read(res.a);
+				printf(" @%d(R%d)", memory, rn);
+				break;
+		/*case 6:
+				if (rn == 7)
+						reg[rn] += 2;
+				res.a = reg[rn] + nn;
+				res.val = w_read(res.a);
+					printf("%o(%o) ", nn, res.val);
+				break;*/
 		default:
 				printf("MODE %d NOT IMPLEMENTED YET!\n", mode);
 				exit(1);
 	}
 	return res;
 }
+void do_jsr() {
+	sp -= 2;
+	w_write(sp, reg[reg_number_sob]);
+	reg[reg_number_sob] = pc;
+	pc = dd.a;
+}
+void do_rts() {
+	pc = reg[r1];
+	reg[r1] = w_read(sp);
+	sp += 2;
+}
+/*void do_jsr()
+{
+	sp -=2;
+	w_write(sp, reg[jr]);
+	reg[jr] = pc;
+	pc = dd.a;
+}
+void do_rts()
+{
+	pc = reg[rr];
+	reg[rr] = w_read(sp);
+	sp += 2;
+}*/
+
 void do_halt()
 {
 	printf("THE END!!!!\n");
@@ -192,7 +252,10 @@ void do_bpl()
 	if(N == 0)
 		do_br();
 }
-
+void do_bne() { 
+	if (Z == 0)
+		do_br();
+}
 void do_tst()
 {
 	setNZ(dd.val);
@@ -231,6 +294,12 @@ void run(adr pc0) {
 				if(cmd.param & HAS_XX) {
 					xx = get_xx(w);
 				}
+				 if (cmd.param & HAS_R) { //1 сдвинутый влево на 3, а мой на 4
+                    reg_number_sob = get_reg_number_sob(w);
+                }
+                if (cmd.param & HAS_R1) { //1 сдвинутый влево на 5
+                    r1 = w & 7;
+                }
 				cmd.func();
 				break;
 			}
